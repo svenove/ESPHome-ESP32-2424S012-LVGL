@@ -1,0 +1,364 @@
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+# Allow Over-The-Air updates
+ota:
+
+# Allow provisioning Wi-Fi via serial
+improv_serial:
+
+wifi:
+  # Set up a wifi access point
+  ap: {}
+
+# In combination with the `ap` this allows the user
+# to provision wifi credentials to the device via WiFi AP.
+captive_portal:
+
+external_components:
+ - source: github://clydebarrow/esphome@lvgl
+   components: [ ili9xxx, image, lvgl ] 
+
+sensor:
+  - platform: homeassistant
+    id: kwh_live
+    entity_id: sensor.power
+    internal: True
+    filters:
+    - delta: 100 # Send updates only when the change is more than 100 watts
+    - timeout: 5min
+    on_value:
+      then:
+        - light.turn_on:
+            id: back_light
+            brightness: 50%
+        - script.execute: update_display
+  - platform: homeassistant
+    id: kwh_today
+    entity_id: sensor.accumulated_consumption_today_kwh
+    internal: True
+    filters:
+    - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
+    - timeout: 90min
+  - platform: homeassistant
+    id: cost_today
+    entity_id: sensor.accumulated_consumption_today_cost
+    internal: True
+    filters:
+    - delta: 1 # Send updates only when the change is more than 1 NOK
+    - timeout: 150min
+  - platform: homeassistant
+    id: kwh_month
+    entity_id: sensor.accumulated_consumption_month_kwh
+    internal: True
+    filters:
+    - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
+    - timeout: 90min
+  - platform: homeassistant
+    id: cost_month
+    entity_id: sensor.accumulated_consumption_month_cost
+    internal: True
+    filters:
+    - delta: 1 # Send updates only when the change is more than 1 NOK
+    - timeout: 150min
+
+spi:
+  clk_pin: GPIO6
+  mosi_pin: GPIO7
+
+output:
+  - platform: ledc
+    pin:
+      number: GPIO3
+    id: backlight_output
+
+light:
+  - platform: monochromatic
+    output: backlight_output
+    name: LCD Backlight
+    id: back_light
+    restore_mode: ALWAYS_ON
+    #default_transition_length: 0s
+
+display:
+  - platform: ili9xxx
+    id: lcd_display
+    model: gc9a01a
+    data_rate: 80MHz
+    cs_pin: GPIO10
+    dc_pin: GPIO2
+    dimensions:
+      width: 240
+      height: 240
+    update_interval: never
+    auto_clear_enabled: false
+    transform: # Configure to use it upside down. Remove transform-element to rotate 180
+      mirror_x: true
+      mirror_y: false
+
+script:
+  - id: update_display
+    then:
+      - lvgl.indicator.line.update:
+          id: power_meter_input
+          value: !lambda return id(kwh_live).state/1000;
+      - lvgl.label.update:
+          id: power_meter_text
+          text: !lambda |-
+            static char buf[8];
+            snprintf(buf, sizeof(buf), "%.1f kW", id(kwh_live).state/1000);
+            return buf;
+      - lvgl.img.update:
+          id: img_thunderbolt
+          src: thunderbolt_icon
+          img_recolor: 0xFFF000 #mixes this color with the base image
+      - lvgl.label.update:
+          id: kwh_today_text
+          text: !lambda |-
+            static char buf[10];
+            snprintf(buf, sizeof(buf), "%.1f kWh", id(kwh_today).state);
+            return buf;
+      - lvgl.label.update:
+          id: cost_today_text
+          text: !lambda |-
+            static char buf[10];
+            snprintf(buf, sizeof(buf), "%.0f kr", id(cost_today).state);
+            return buf;
+      - lvgl.label.update:
+          id: kwh_month_text
+          text: !lambda |-
+            static char buf[10];
+            snprintf(buf, sizeof(buf), "%.1f kWh", id(kwh_month).state);
+            return buf;
+      - lvgl.label.update:
+          id: cost_month_text
+          text: !lambda |-
+            static char buf[10];
+            snprintf(buf, sizeof(buf), "%.0f kr", id(cost_month).state);
+            return buf;
+
+i2c:
+  sda: 4
+  scl: 5
+  #scan: true
+  id: i2c_touch
+
+touchscreen:
+  platform: cst816
+  id: my_touchscreen
+  interrupt_pin: 0
+  reset_pin: 1
+  on_touch:
+    then:
+      lvgl.page.next:
+
+image:
+  - file: mdi:lightning-bolt
+    id: thunderbolt_icon
+    resize: 50x50
+
+lvgl:
+  touchscreens: my_touchscreen
+  log_level: WARN
+  color_depth: 16
+  bg_color: 0
+  border_width: 0
+  outline_width: 0
+  shadow_width: 0
+  text_font: unscii_16
+  align: center
+  style_definitions:
+    - id: meter_style
+      text_font: unscii_8
+      #state_default: null
+    - id: font_style
+      text_font: MONTSERRAT_24
+      #text_font: unscii_16
+      align: center
+      text_color: 0xFFFFFF
+      #bg_opa: cover
+      bg_opa: TRANSP
+      bg_color: 0
+      radius: 4
+      pad_all: 2 
+  page_wrap: true
+  pages:
+    - id: main_page
+      widgets:
+        - obj: # Meter
+            height: 240 # needed to be explicitily defined for my round display to not have weird corder line overlappting gauge
+            width: 240
+            #bg_opa: TRANSP
+            bg_color: 0
+            border_width: 0
+            outline_width: 0
+            shadow_width: 0
+            pad_all: 4
+            align: center
+            #scrollbar_mode: "off"
+            widgets:
+              - meter: # Gradient color  arc
+                  height: 100%
+                  width: 100%
+                  border_width: 0
+                  outline_width: 0
+                  align: center
+                  bg_color: 0
+                  styles: meter_style
+                  #bg_opa: TRANSP
+                  scales:
+                    angle_range: 240 # sets the total angle to 180 = starts mid left and ends mid right
+                    range_to: 20
+                    range_from: 0
+                    ticks:
+                      count: 0
+
+                    indicators:
+                      - line:
+                          id: power_meter_input
+                          width: 8
+                          color: 0xFFFFFF
+                          r_mod: 12 #sets line length by this much difference from the scale default radius
+                          value: 50
+                      - img:
+                          id: power_meter_input_img
+                      - arc:
+                          color: 0x00FF00
+                          r_mod: 10 #radius difference from the scale default radius
+                          width: 20
+                          start_value: 0
+                          end_value: 6
+                      - arc:
+                          color: 0xFFFF00 
+                          r_mod: 10 #radius difference from the scale default radius
+                          width: 20
+                          start_value: 6
+                          end_value: 10
+                      - arc:
+                          color: 0xFF3000
+                          r_mod: 10 #radius difference from the scale default radius
+                          width: 20
+                          start_value: 10
+                          end_value: 20
+              #- canvas:
+              - arc: # black arc to erase middle part of meter indicator line
+                  height: 170
+                  width: 170
+                  align: center
+                  arc_color: 0x000000 # background color
+                  arc_width: 150
+                  start_angle: 0
+                  end_angle: 360
+                  indicator:
+                    arc_width: 150
+                    arc_color: 0x000000
+              - label: # gauge lower and higher range indicators
+                  styles: font_style
+                  text_font: MONTSERRAT_22 # override font size
+                  y: 70 #negative = higher
+                  x: -70
+                  text: "0"
+              - label: # gauge lower and higher range indicators
+                  styles: font_style
+                  text_font: MONTSERRAT_22 # override font size
+                  y: -70 #negative = higher
+                  x: 0
+                  text: "10"
+              - label:
+                  styles: font_style
+                  text_font: MONTSERRAT_22 # override font size
+                  y: 70 #negative = higher
+                  x: 70
+                  text: "20"
+              - label:
+                  styles: font_style
+                  text_font: MONTSERRAT_40 # override font size
+                  id: power_meter_text
+                  y: 0
+                  text: "? kW"
+              - img:
+                  src: thunderbolt_icon
+                  id: img_thunderbolt
+                  align: center
+                  img_recolor: 0xFFFF00
+                  img_recolor_opa: 100% #opacity defaults to 0% = must set this for recolor to take effect
+                  #bg_color: 0xFFFFFF
+                  y: 80
+                  #x: -60    
+    - id: page1
+      height: 240 # needed to be explicitily defined for my round display to not have weird corder line overlappting gauge
+      width: 240
+      #bg_opa: TRANSP
+      bg_color: 0
+      border_width: 0
+      outline_width: 0
+      shadow_width: 0
+      pad_all: 4
+      align: center
+      #scrollbar_mode: "off"
+      widgets:
+        - label:
+            styles: font_style
+            text_font: MONTSERRAT_30 # override font size
+            y: -40 #negative = higher
+            x: 0
+            text: "Hittil i dag:"
+        - label:
+            styles: font_style
+            text_font: MONTSERRAT_26 # override font size
+            id: kwh_today_text
+            y: 0 #negative = higher
+            x: 0
+            text: "? kWh"
+        - label:
+            styles: font_style
+            text_font: MONTSERRAT_26 # override font size
+            id: cost_today_text
+            y: 40 #negative = higher
+            x: 0
+            text: "? kr"
+    - id: page2
+      height: 240 # needed to be explicitily defined for my round display to not have weird corder line overlappting gauge
+      width: 240
+      #bg_opa: TRANSP
+      bg_color: 0
+      border_width: 0
+      outline_width: 0
+      shadow_width: 0
+      pad_all: 4
+      align: center
+      #scrollbar_mode: "off"
+      widgets:
+        - label:
+            styles: font_style
+            text_font: MONTSERRAT_30 # override font size
+            y: -40 #negative = higher
+            x: 0
+            text: "Hittil mnd:"
+        - label:
+            styles: font_style
+            text_font: MONTSERRAT_26 # override font size
+            id: kwh_month_text
+            y: 0 #negative = higher
+            x: 0
+            text: "? kWh"
+        - label:
+            styles: font_style
+            text_font: MONTSERRAT_26 # override font size
+            id: cost_month_text
+            y: 40 #negative = higher
+            x: 0
+            text: "? kr"
