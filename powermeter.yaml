@@ -1,3 +1,7 @@
+substitutions:
+  name: "esphome-ams-display"
+  friendly_name: AMS-meter hvit
+
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
@@ -28,14 +32,21 @@ wifi:
 # to provision wifi credentials to the device via WiFi AP.
 captive_portal:
 
+#external_components:
+#  - source: github://clydebarrow/esphome@lvgl
+#    components: [ ili9xxx, image, lvgl ] 
+
 external_components:
- - source: github://clydebarrow/esphome@lvgl
-   components: [ ili9xxx, image, lvgl ] 
+  - source:
+      type: git
+      url: https://github.com/clydebarrow/esphome
+      ref: fd15094c0860df23d532881df36cfd16c7da1091 #previous commit - wont be needed in the future
+    components: [ lvgl ] 
 
 sensor:
   - platform: homeassistant
     id: kwh_live
-    entity_id: sensor.power
+    entity_id: sensor.power_hjemme
     internal: True
     filters:
     - delta: 100 # Send updates only when the change is more than 100 watts
@@ -48,32 +59,33 @@ sensor:
         - script.execute: update_display
   - platform: homeassistant
     id: kwh_today
-    entity_id: sensor.accumulated_consumption_today_kwh
+    entity_id: sensor.accumulated_consumption_hjemme
     internal: True
     filters:
     - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
     - timeout: 90min
   - platform: homeassistant
     id: cost_today
-    entity_id: sensor.accumulated_consumption_today_cost
+    entity_id: sensor.strom_hittil_i_dag_kr
     internal: True
     filters:
-    - delta: 1 # Send updates only when the change is more than 1 NOK
+    - delta: 1 # Send updates only when the change is more than 1 kr
     - timeout: 150min
   - platform: homeassistant
     id: kwh_month
-    entity_id: sensor.accumulated_consumption_month_kwh
+    entity_id: sensor.kwh_hittil_mnd
     internal: True
     filters:
     - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
     - timeout: 90min
   - platform: homeassistant
     id: cost_month
-    entity_id: sensor.accumulated_consumption_month_cost
+    entity_id: sensor.strom_hittil_mnd_kr
     internal: True
     filters:
-    - delta: 1 # Send updates only when the change is more than 1 NOK
+    - delta: 1 # Send updates only when the change is more than 1 kr
     - timeout: 150min
+
 
 spi:
   clk_pin: GPIO6
@@ -114,7 +126,7 @@ script:
     then:
       - lvgl.indicator.line.update:
           id: power_meter_input
-          value: !lambda return id(kwh_live).state/1000;
+          value: !lambda return id(kwh_live).state/100;
       - lvgl.label.update:
           id: power_meter_text
           text: !lambda |-
@@ -221,7 +233,7 @@ lvgl:
                   #bg_opa: TRANSP
                   scales:
                     angle_range: 240 # sets the total angle to 180 = starts mid left and ends mid right
-                    range_to: 20
+                    range_to: 150
                     range_from: 0
                     ticks:
                       count: 0
@@ -240,19 +252,19 @@ lvgl:
                           r_mod: 10 #radius difference from the scale default radius
                           width: 20
                           start_value: 0
-                          end_value: 6
+                          end_value: 50
                       - arc:
                           color: 0xFFFF00 
                           r_mod: 10 #radius difference from the scale default radius
                           width: 20
-                          start_value: 6
-                          end_value: 10
+                          start_value: 50
+                          end_value: 100
                       - arc:
                           color: 0xFF3000
                           r_mod: 10 #radius difference from the scale default radius
                           width: 20
-                          start_value: 10
-                          end_value: 20
+                          start_value: 100
+                          end_value: 150
               #- canvas:
               - arc: # black arc to erase middle part of meter indicator line
                   height: 170
@@ -276,13 +288,13 @@ lvgl:
                   text_font: MONTSERRAT_22 # override font size
                   y: -70 #negative = higher
                   x: 0
-                  text: "10"
+                  text: "7.5"
               - label:
                   styles: font_style
                   text_font: MONTSERRAT_22 # override font size
                   y: 70 #negative = higher
                   x: 70
-                  text: "20"
+                  text: "15"
               - label:
                   styles: font_style
                   text_font: MONTSERRAT_40 # override font size
