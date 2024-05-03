@@ -32,10 +32,6 @@ wifi:
 # to provision wifi credentials to the device via WiFi AP.
 captive_portal:
 
-#external_components:
-#  - source: github://clydebarrow/esphome@lvgl
-#    components: [ ili9xxx, image, lvgl ] 
-
 external_components:
   - source:
       type: git
@@ -51,6 +47,7 @@ sensor:
     filters:
     - delta: 100 # Send updates only when the change is more than 100 watts
     - timeout: 5min
+    - multiply: 0.001 # Convert from Wh to kWh
     on_value:
       then:
         - light.turn_on:
@@ -103,7 +100,6 @@ light:
     name: LCD Backlight
     id: back_light
     restore_mode: ALWAYS_ON
-    #default_transition_length: 0s
 
 display:
   - platform: ili9xxx
@@ -126,46 +122,40 @@ script:
     then:
       - lvgl.indicator.line.update:
           id: power_meter_input
-          value: !lambda return id(kwh_live).state/100;
+          value: !lambda return id(kwh_live).state*10;
       - lvgl.label.update:
           id: power_meter_text
-          text: !lambda |-
-            static char buf[8];
-            snprintf(buf, sizeof(buf), "%.1f kW", id(kwh_live).state/1000);
-            return buf;
+          text:
+            format: "%.1f kW"
+            args: [ 'id(kwh_live).get_state()' ]
       - lvgl.img.update:
           id: img_thunderbolt
           src: thunderbolt_icon
           img_recolor: 0xFFF000 #mixes this color with the base image
       - lvgl.label.update:
           id: kwh_today_text
-          text: !lambda |-
-            static char buf[10];
-            snprintf(buf, sizeof(buf), "%.1f kWh", id(kwh_today).state);
-            return buf;
+          text:
+            format: "%.1f kWh"
+            args: [ 'id(kwh_today).get_state()' ]
       - lvgl.label.update:
           id: cost_today_text
-          text: !lambda |-
-            static char buf[10];
-            snprintf(buf, sizeof(buf), "%.0f kr", id(cost_today).state);
-            return buf;
+          text:
+            format: "%.0f kr"
+            args: [ 'id(cost_today).get_state()' ]
       - lvgl.label.update:
           id: kwh_month_text
-          text: !lambda |-
-            static char buf[10];
-            snprintf(buf, sizeof(buf), "%.1f kWh", id(kwh_month).state);
-            return buf;
+          text:
+            format: "%.1f kWh"
+            args: [ 'id(kwh_month).get_state()' ]
       - lvgl.label.update:
           id: cost_month_text
-          text: !lambda |-
-            static char buf[10];
-            snprintf(buf, sizeof(buf), "%.0f kr", id(cost_month).state);
-            return buf;
+          text:
+            format: "%.0f kr"
+            args: [ 'id(cost_month).get_state()' ]
 
 i2c:
   sda: 4
   scl: 5
-  #scan: true
   id: i2c_touch
 
 touchscreen:
@@ -195,13 +185,10 @@ lvgl:
   style_definitions:
     - id: meter_style
       text_font: unscii_8
-      #state_default: null
     - id: font_style
       text_font: MONTSERRAT_24
-      #text_font: unscii_16
       align: center
       text_color: 0xFFFFFF
-      #bg_opa: cover
       bg_opa: TRANSP
       bg_color: 0
       radius: 4
@@ -213,14 +200,12 @@ lvgl:
         - obj: # Meter
             height: 240 # needed to be explicitily defined for my round display to not have weird corder line overlappting gauge
             width: 240
-            #bg_opa: TRANSP
             bg_color: 0
             border_width: 0
             outline_width: 0
             shadow_width: 0
             pad_all: 4
             align: center
-            #scrollbar_mode: "off"
             widgets:
               - meter: # Gradient color  arc
                   height: 100%
@@ -230,7 +215,6 @@ lvgl:
                   align: center
                   bg_color: 0
                   styles: meter_style
-                  #bg_opa: TRANSP
                   scales:
                     angle_range: 240 # sets the total angle to 180 = starts mid left and ends mid right
                     range_to: 150
@@ -265,18 +249,14 @@ lvgl:
                           width: 20
                           start_value: 100
                           end_value: 150
-              #- canvas:
-              - arc: # black arc to erase middle part of meter indicator line
-                  height: 170
-                  width: 170
-                  align: center
-                  arc_color: 0x000000 # background color
-                  arc_width: 150
-                  start_angle: 0
-                  end_angle: 360
-                  indicator:
-                    arc_width: 150
-                    arc_color: 0x000000
+              - obj: # to erase middle part of meter indicator line
+                    height: 170
+                    width: 170
+                    radius: 73
+                    align: center
+                    border_width: 0
+                    pad_all: 0
+                    bg_color: 0x000000
               - label: # gauge lower and higher range indicators
                   styles: font_style
                   text_font: MONTSERRAT_22 # override font size
@@ -307,20 +287,16 @@ lvgl:
                   align: center
                   img_recolor: 0xFFFF00
                   img_recolor_opa: 100% #opacity defaults to 0% = must set this for recolor to take effect
-                  #bg_color: 0xFFFFFF
                   y: 80
-                  #x: -60    
     - id: page1
       height: 240 # needed to be explicitily defined for my round display to not have weird corder line overlappting gauge
       width: 240
-      #bg_opa: TRANSP
       bg_color: 0
       border_width: 0
       outline_width: 0
       shadow_width: 0
       pad_all: 4
       align: center
-      #scrollbar_mode: "off"
       widgets:
         - label:
             styles: font_style
@@ -345,14 +321,12 @@ lvgl:
     - id: page2
       height: 240 # needed to be explicitily defined for my round display to not have weird corder line overlappting gauge
       width: 240
-      #bg_opa: TRANSP
       bg_color: 0
       border_width: 0
       outline_width: 0
       shadow_width: 0
       pad_all: 4
       align: center
-      #scrollbar_mode: "off"
       widgets:
         - label:
             styles: font_style
