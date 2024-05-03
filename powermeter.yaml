@@ -52,7 +52,7 @@ sensor:
       then:
         - light.turn_on:
             id: back_light
-            brightness: 50%
+            brightness: 70%
         - script.execute: update_display
   - platform: homeassistant
     id: kwh_today
@@ -225,8 +225,8 @@ lvgl:
                     indicators:
                       - line:
                           id: power_meter_input
-                          width: 8
-                          color: 0xFFFFFF
+                          width: 10
+                          color: 0x0000FF
                           r_mod: 12 #sets line length by this much difference from the scale default radius
                           value: 50
                       - img:
@@ -250,9 +250,9 @@ lvgl:
                           start_value: 100
                           end_value: 150
               - obj: # to erase middle part of meter indicator line
-                    height: 170
-                    width: 170
-                    radius: 73
+                    height: 180
+                    width: 180
+                    radius: 90
                     align: center
                     border_width: 0
                     pad_all: 0
