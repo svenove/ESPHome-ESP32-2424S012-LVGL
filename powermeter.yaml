@@ -6,6 +6,11 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   name_add_mac_suffix: false
+  on_boot: 
+    then:
+      - light.turn_on:
+          id: back_light
+          brightness: 70% 
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -50,9 +55,9 @@ sensor:
     - multiply: 0.001 # Convert from Wh to kWh
     on_value:
       then:
-        - light.turn_on:
-            id: back_light
-            brightness: 70%
+        #- light.turn_on:
+          #  id: back_light
+         #   brightness: 70%
         - script.execute: update_display
   - platform: homeassistant
     id: kwh_today
@@ -100,6 +105,9 @@ light:
     name: LCD Backlight
     id: back_light
     restore_mode: ALWAYS_ON
+    on_turn_off: 
+      then:
+        lvgl.pause
 
 display:
   - platform: ili9xxx
@@ -122,7 +130,7 @@ script:
     then:
       - lvgl.indicator.line.update:
           id: power_meter_input
-          value: !lambda return id(kwh_live).state*10;
+          value: !lambda return id(kwh_live).get_state()*10;
       - lvgl.label.update:
           id: power_meter_text
           text:
@@ -165,7 +173,16 @@ touchscreen:
   reset_pin: 1
   on_touch:
     then:
-      lvgl.page.next:
+      - if: # If the LCD is switched off (controllable from the HASS-device), turn on display on first touch
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume
+            - lvgl.page.show: main_page
+            - light.turn_on:
+                id: back_light
+                brightness: 70%
+          else: # If LCD is on, then a touch should show the next page
+            - lvgl.page.next
 
 image:
   - file: mdi:lightning-bolt
@@ -193,6 +210,10 @@ lvgl:
       bg_color: 0
       radius: 4
       pad_all: 2 
+  on_idle:  # Go back to main page after 15 sec
+    - timeout: 15 sec
+      then: 
+        - lvgl.page.show: main_page
   page_wrap: true
   pages:
     - id: main_page
