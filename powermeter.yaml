@@ -1,6 +1,10 @@
 substitutions:
   name: "esphome-ams-display"
-  friendly_name: AMS-meter hvit
+  friendly_name: "AMS-meter hvit"
+  section1_end: "5"
+  section2_end: "10"
+  section3_end: "15"
+  center_label: "7.5" # Setting this automatically is currently a work-in-progress!
 
 esphome:
   name: ${name}
@@ -63,7 +67,7 @@ sensor:
             condition:
               sensor.in_range: 
                  id: kwh_live
-                 below: 5
+                 below: ${section1_end}
             then:
               - lvgl.label.update:
                   id: power_meter_text
@@ -72,8 +76,8 @@ sensor:
             condition:
               sensor.in_range: 
                  id: kwh_live
-                 above: 5
-                 below: 10
+                 above: ${section1_end}
+                 below: ${section2_end}
             then:
               - lvgl.label.update:
                   id: power_meter_text
@@ -82,7 +86,7 @@ sensor:
             condition:
               sensor.in_range: 
                  id: kwh_live
-                 above: 10
+                 above: ${section2_end}
             then:
               - lvgl.label.update:
                   id: power_meter_text
@@ -93,30 +97,41 @@ sensor:
     entity_id: sensor.accumulated_consumption_hjemme
     internal: True
     filters:
-    - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
-    - timeout: 90min
+      - or:
+        - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
+        - timeout:
+            timeout: 90min
+            value: 0
   - platform: homeassistant
     id: cost_today
     entity_id: sensor.strom_hittil_i_dag_kr
     internal: True
     filters:
-    - delta: 1 # Send updates only when the change is more than 1 kr
-    - timeout: 150min
+      - or:
+        - delta: 1 # Send updates only when the change is more than 1 kr
+        - timeout:
+            timeout: 150min
+            value: 0
   - platform: homeassistant
     id: kwh_month
     entity_id: sensor.kwh_hittil_mnd
     internal: True
     filters:
-    - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
-    - timeout: 90min
+      - or:
+        - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
+        - timeout:
+            timeout: 90min
+            value: 0
   - platform: homeassistant
     id: cost_month
     entity_id: sensor.strom_hittil_mnd_kr
     internal: True
     filters:
-    - delta: 1 # Send updates only when the change is more than 1 kr
-    - timeout: 150min
-
+      - or:
+        - delta: 1 # Send updates only when the change is more than 1 kr
+        - timeout:
+            timeout: 150min
+            value: 0
 
 spi:
   clk_pin: GPIO6
@@ -278,7 +293,7 @@ lvgl:
                           width: 10
                           color: 0x0000FF
                           r_mod: 12 #sets line length by this much difference from the scale default radius
-                          value: 50
+                          value: 0
                       - img:
                           id: power_meter_input_img
                       - arc:
@@ -286,19 +301,19 @@ lvgl:
                           r_mod: 10 #radius difference from the scale default radius
                           width: 20
                           start_value: 0
-                          end_value: 50
+                          end_value: !lambda return $section1_end*10;
                       - arc:
                           color: 0xFFFF00 
                           r_mod: 10 #radius difference from the scale default radius
                           width: 20
-                          start_value: 50
-                          end_value: 100
+                          start_value: !lambda return $section1_end*10;
+                          end_value: !lambda return $section2_end*10;
                       - arc:
                           color: 0xFF3000
                           r_mod: 10 #radius difference from the scale default radius
                           width: 20
-                          start_value: 100
-                          end_value: 150
+                          start_value: !lambda return $section2_end*10;
+                          end_value: !lambda return $section3_end*10;
               - obj: # to erase middle part of meter indicator line
                     height: 180
                     width: 180
@@ -318,13 +333,18 @@ lvgl:
                   text_font: MONTSERRAT_22 # override font size
                   y: -70 #negative = higher
                   x: 0
-                  text: "7.5"
+                  text: $center_label
+                  # WIP!
+                  #text: !lambda |-
+                  #  std::string result = std::to_string(float($section3_end*10/2)/10);
+                  #  return result.c_str();
+                  # WIP!
               - label:
                   styles: font_style
                   text_font: MONTSERRAT_22 # override font size
                   y: 70 #negative = higher
                   x: 70
-                  text: "15"
+                  text: $section3_end
               - label:
                   styles: font_style
                   text_font: MONTSERRAT_40 # override font size
