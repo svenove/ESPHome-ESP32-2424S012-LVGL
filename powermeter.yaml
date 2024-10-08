@@ -152,6 +152,7 @@ light:
 
 display:
   - platform: ili9xxx
+    invert_colors: true
     id: lcd_display
     model: gc9a01a
     data_rate: 80MHz
