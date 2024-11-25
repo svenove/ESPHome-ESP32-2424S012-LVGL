@@ -38,13 +38,6 @@ wifi:
 # to provision wifi credentials to the device via WiFi AP.
 captive_portal:
 
-external_components:
-  - source:
-      type: git
-      url: https://github.com/clydebarrow/esphome
-      ref: fd15094c0860df23d532881df36cfd16c7da1091 #previous commit - wont be needed in the future
-    components: [ lvgl ] 
-
 sensor:
   - platform: homeassistant
     id: kwh_live
@@ -164,13 +157,13 @@ display:
     update_interval: never
     auto_clear_enabled: false
     transform: # Configure to use it upside down. Remove transform-element to rotate 180
-      mirror_x: true
-      mirror_y: false
+      mirror_x: false
+      mirror_y: true
 
 script:
   - id: update_display
     then:
-      - lvgl.indicator.line.update:
+      - lvgl.indicator.update:
           id: power_meter_input
           value: !lambda return id(kwh_live).get_state()*10;
       - lvgl.label.update:
@@ -178,10 +171,10 @@ script:
           text:
             format: "%.1f kW"
             args: [ 'id(kwh_live).get_state()' ]
-      - lvgl.img.update:
+      - lvgl.image.update:
           id: img_thunderbolt
           src: thunderbolt_icon
-          img_recolor: 0xFFF000 #mixes this color with the base image
+          image_recolor: 0xFFF000 #mixes this color with the base image
       - lvgl.label.update:
           id: kwh_today_text
           text:
@@ -291,8 +284,6 @@ lvgl:
                           color: 0x0000FF
                           r_mod: 12 #sets line length by this much difference from the scale default radius
                           value: 0
-                      - img:
-                          id: power_meter_input_img
                       - arc:
                           color: 0x00FF00
                           r_mod: 10 #radius difference from the scale default radius
@@ -348,12 +339,12 @@ lvgl:
                   id: power_meter_text
                   y: 0
                   text: "? kW"
-              - img:
+              - image:
                   src: thunderbolt_icon
                   id: img_thunderbolt
                   align: center
-                  img_recolor: 0xFFFF00
-                  img_recolor_opa: 100% #opacity defaults to 0% = must set this for recolor to take effect
+                  image_recolor: 0xFFFF00
+                  image_recolor_opa: 100% #opacity defaults to 0% = must set this for recolor to take effect
                   y: 80
     - id: page1
       height: 240 # needed to be explicitily defined for my round display to not have weird corder line overlappting gauge
