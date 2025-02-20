@@ -222,6 +222,7 @@ image:
   - file: mdi:lightning-bolt
     id: thunderbolt_icon
     resize: 50x50
+    type: BINARY
 
 lvgl:
   touchscreens: my_touchscreen
