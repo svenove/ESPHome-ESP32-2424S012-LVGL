@@ -276,7 +276,7 @@ lvgl:
                     range_to: 150
                     range_from: 0
                     ticks:
-                      count: 0
+                      count: 2
 
                     indicators:
                       - line:
