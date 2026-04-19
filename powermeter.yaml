@@ -1,6 +1,6 @@
 substitutions:
   name: "esphome-ams-display"
-  friendly_name: "AMS-meter hvit"
+  friendly_name: "AMS-meter white"
   section1_end: "5"
   section2_end: "10"
   section3_end: "15"
