@@ -45,38 +45,38 @@ sensor:
     internal: True
     filters:
       - or:
-        - delta: 100 # Send updates only when the change is more than 100 watts
-        - timeout:
-            timeout: 5min
-            value: 0
+          - delta: 100 # Send updates only when the change is more than 100 watts
+          - timeout:
+              timeout: 5min
+              value: 0
       - multiply: 0.001 # Convert from Wh to kWh
     on_value:
       then:
         - script.execute: update_display
         - if: # Green font color if current usage is under 5 kWh
             condition:
-              sensor.in_range: 
-                 id: kwh_live
-                 below: ${section1_end}
+              sensor.in_range:
+                id: kwh_live
+                below: ${section1_end}
             then:
               - lvgl.label.update:
                   id: power_meter_text
                   text_color: 0x00FF00
         - if: # Yellow font color if current usage is 5-10 kWh
             condition:
-              sensor.in_range: 
-                 id: kwh_live
-                 above: ${section1_end}
-                 below: ${section2_end}
+              sensor.in_range:
+                id: kwh_live
+                above: ${section1_end}
+                below: ${section2_end}
             then:
               - lvgl.label.update:
                   id: power_meter_text
                   text_color: 0xFFFF00
         - if: # Red font color if current usage is over 10 kWh
             condition:
-              sensor.in_range: 
-                 id: kwh_live
-                 above: ${section2_end}
+              sensor.in_range:
+                id: kwh_live
+                above: ${section2_end}
             then:
               - lvgl.label.update:
                   id: power_meter_text
@@ -88,40 +88,43 @@ sensor:
     internal: True
     filters:
       - or:
-        - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
-        - timeout:
-            timeout: 90min
-            value: 0
+          - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
+          - timeout:
+              timeout: 90min
+              value: 0
+
   - platform: homeassistant
     id: cost_today
     entity_id: sensor.strom_hittil_i_dag_kr
     internal: True
     filters:
       - or:
-        - delta: 1 # Send updates only when the change is more than 1 kr
-        - timeout:
-            timeout: 150min
-            value: 0
+          - delta: 1 # Send updates only when the change is more than 1 kr
+          - timeout:
+              timeout: 150min
+              value: 0
+
   - platform: homeassistant
     id: kwh_month
     entity_id: sensor.kwh_hittil_mnd
     internal: True
     filters:
       - or:
-        - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
-        - timeout:
-            timeout: 90min
-            value: 0
+          - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
+          - timeout:
+              timeout: 90min
+              value: 0
+
   - platform: homeassistant
     id: cost_month
     entity_id: sensor.strom_hittil_mnd_kr
     internal: True
     filters:
       - or:
-        - delta: 1 # Send updates only when the change is more than 1 kr
-        - timeout:
-            timeout: 150min
-            value: 0
+          - delta: 1 # Send updates only when the change is more than 1 kr
+          - timeout:
+              timeout: 150min
+              value: 0
 
 spi:
   clk_pin: GPIO6
@@ -139,26 +142,28 @@ light:
     name: LCD Backlight
     id: back_light
     restore_mode: RESTORE_DEFAULT_ON
-    on_turn_off: 
+    on_turn_off:
       then:
         lvgl.pause
 
+# CHANGED: Migrated from deprecated "ili9xxx" platform to "mipi_spi"
+# The ili9xxx platform causes blank screens in ESPHome 2026.4.0 with LVGL v9.
 display:
-  - platform: ili9xxx
+  - platform: mipi_spi
+    model: GC9A01A
     invert_colors: true
     id: lcd_display
-    model: gc9a01a
     data_rate: 80MHz
     cs_pin: GPIO10
     dc_pin: GPIO2
     dimensions:
       width: 240
       height: 240
+    pixel_mode: 16bit    # explicit pixel mode required for mipi_spi
+    color_order: BGR     # GC9A01A requires BGR for correct colors
     update_interval: never
     auto_clear_enabled: false
-    transform: # Configure to use it upside down. Remove transform-element to rotate 180
-      mirror_x: false
-      mirror_y: true
+    # Orientation (upside-down mount) is handled by rotation: 180 in the lvgl: block
 
 script:
   - id: update_display
@@ -226,6 +231,7 @@ image:
 
 lvgl:
   touchscreens: my_touchscreen
+  rotation: 180          # replaces old "transform: mirror_y: true" on the display
   log_level: WARN
   color_depth: 16
   bg_color: 0
@@ -244,17 +250,17 @@ lvgl:
       bg_opa: TRANSP
       bg_color: 0
       radius: 4
-      pad_all: 2 
-  on_idle:  # Go back to main page after 15 sec
+      pad_all: 2
+  on_idle: # Go back to main page after 15 sec
     - timeout: 15 sec
-      then: 
+      then:
         - lvgl.page.show: main_page
   page_wrap: true
   pages:
     - id: main_page
       widgets:
         - obj: # Meter
-            height: 240 # needed to be explicitily defined for my round display to not have weird corder line overlappting gauge
+            height: 240 # needed to be explicitly defined for my round display to not have weird corner line overlapping gauge
             width: 240
             bg_color: 0
             border_width: 0
@@ -263,7 +269,7 @@ lvgl:
             pad_all: 4
             align: center
             widgets:
-              - meter: # Gradient color  arc
+              - meter: # Gradient color arc
                   height: 100%
                   width: 100%
                   border_width: 0
@@ -277,66 +283,60 @@ lvgl:
                     range_from: 0
                     ticks:
                       count: 2
-
                     indicators:
                       - line:
                           id: power_meter_input
                           width: 10
                           color: 0x0000FF
-                          r_mod: 12 #sets line length by this much difference from the scale default radius
+                          r_mod: 12
                           value: 0
                       - arc:
                           color: 0x00FF00
-                          r_mod: 10 #radius difference from the scale default radius
+                          r_mod: 10
                           width: 20
                           start_value: 0
                           end_value: !lambda return $section1_end*10;
                       - arc:
-                          color: 0xFFFF00 
-                          r_mod: 10 #radius difference from the scale default radius
+                          color: 0xFFFF00
+                          r_mod: 10
                           width: 20
                           start_value: !lambda return $section1_end*10;
                           end_value: !lambda return $section2_end*10;
                       - arc:
                           color: 0xFF3000
-                          r_mod: 10 #radius difference from the scale default radius
+                          r_mod: 10
                           width: 20
                           start_value: !lambda return $section2_end*10;
                           end_value: !lambda return $section3_end*10;
               - obj: # to erase middle part of meter indicator line
-                    height: 180
-                    width: 180
-                    radius: 90
-                    align: center
-                    border_width: 0
-                    pad_all: 0
-                    bg_color: 0x000000
-              - label: # gauge lower and higher range indicators
+                  height: 180
+                  width: 180
+                  radius: 90
+                  align: center
+                  border_width: 0
+                  pad_all: 0
+                  bg_color: 0x000000
+              - label: # gauge lower range indicator
                   styles: font_style
-                  text_font: MONTSERRAT_22 # override font size
-                  y: 70 #negative = higher
+                  text_font: MONTSERRAT_22
+                  y: 70
                   x: -70
                   text: "0"
-              - label: # gauge lower and higher range indicators
+              - label: # gauge center indicator
                   styles: font_style
-                  text_font: MONTSERRAT_22 # override font size
-                  y: -70 #negative = higher
+                  text_font: MONTSERRAT_22
+                  y: -70
                   x: 0
                   text: $center_label
-                  # WIP!
-                  #text: !lambda |-
-                  #  std::string result = std::to_string(float($section3_end*10/2)/10);
-                  #  return result.c_str();
-                  # WIP!
-              - label:
+              - label: # gauge upper range indicator
                   styles: font_style
-                  text_font: MONTSERRAT_22 # override font size
-                  y: 70 #negative = higher
+                  text_font: MONTSERRAT_22
+                  y: 70
                   x: 70
                   text: $section3_end
               - label:
                   styles: font_style
-                  text_font: MONTSERRAT_40 # override font size
+                  text_font: MONTSERRAT_40
                   id: power_meter_text
                   y: 0
                   text: "? kW"
@@ -345,10 +345,11 @@ lvgl:
                   id: img_thunderbolt
                   align: center
                   image_recolor: 0xFFFF00
-                  image_recolor_opa: 100% #opacity defaults to 0% = must set this for recolor to take effect
+                  image_recolor_opa: 100%
                   y: 80
+
     - id: page1
-      height: 240 # needed to be explicitily defined for my round display to not have weird corder line overlappting gauge
+      height: 240
       width: 240
       bg_color: 0
       border_width: 0
@@ -359,26 +360,27 @@ lvgl:
       widgets:
         - label:
             styles: font_style
-            text_font: MONTSERRAT_30 # override font size
-            y: -40 #negative = higher
+            text_font: MONTSERRAT_30
+            y: -40
             x: 0
             text: "Hittil i dag:"
         - label:
             styles: font_style
-            text_font: MONTSERRAT_26 # override font size
+            text_font: MONTSERRAT_26
             id: kwh_today_text
-            y: 0 #negative = higher
+            y: 0
             x: 0
             text: "? kWh"
         - label:
             styles: font_style
-            text_font: MONTSERRAT_26 # override font size
+            text_font: MONTSERRAT_26
             id: cost_today_text
-            y: 40 #negative = higher
+            y: 40
             x: 0
             text: "? kr"
+
     - id: page2
-      height: 240 # needed to be explicitily defined for my round display to not have weird corder line overlappting gauge
+      height: 240
       width: 240
       bg_color: 0
       border_width: 0
@@ -389,21 +391,21 @@ lvgl:
       widgets:
         - label:
             styles: font_style
-            text_font: MONTSERRAT_30 # override font size
-            y: -40 #negative = higher
+            text_font: MONTSERRAT_30
+            y: -40
             x: 0
             text: "Hittil mnd:"
         - label:
             styles: font_style
-            text_font: MONTSERRAT_26 # override font size
+            text_font: MONTSERRAT_26
             id: kwh_month_text
-            y: 0 #negative = higher
+            y: 0
             x: 0
             text: "? kWh"
         - label:
             styles: font_style
-            text_font: MONTSERRAT_26 # override font size
+            text_font: MONTSERRAT_26
             id: cost_month_text
-            y: 40 #negative = higher
+            y: 40
             x: 0
             text: "? kr"
