@@ -5,4 +5,4 @@ I've taken @clowrey's ["powermeter"-example](https://github.com/clowrey/esphome-
 ![powermeter](https://github.com/svenove/ESPHome-ESP32-2424S012-LVGL/assets/4579212/ab7ecbd6-c64c-41fe-a5ec-8f9ec23f8c95)
 
 PS:
-Tested on ESPHome 2026.4.0, might be incompatible with older versions (if using older versions, look in the commits and use an older version of the YAML-code)
+Tested on ESPHome 2026.8.0, might be incompatible with older versions (if using older versions, look in the commits and use an older version of the YAML-code)
