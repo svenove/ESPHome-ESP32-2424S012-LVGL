@@ -1,10 +1,9 @@
 substitutions:
-  name: "esphome-ams-display"
-  friendly_name: "AMS-meter white"
+  name: "powermeter"
+  friendly_name: "Powermeter"
   section1_end: "5"
   section2_end: "10"
   section3_end: "15"
-  center_label: "7.5" # Setting this automatically is currently a work-in-progress!
 
 esphome:
   name: ${name}
@@ -22,10 +21,13 @@ logger:
 
 # Enable Home Assistant API
 api:
+  encryption:
+    key: !secret powermeter__powermeter_encryption_key
 
 # Allow Over-The-Air updates
 ota:
   - platform: esphome
+    password: !secret powermeter__powermeter_ota_password
 
 # Allow provisioning Wi-Fi via serial
 improv_serial:
@@ -95,7 +97,7 @@ sensor:
 
   - platform: homeassistant
     id: cost_today
-    entity_id: sensor.strom_hittil_i_dag_kr
+    entity_id: sensor.manedlig_forbruk_dagens_kostnad
     internal: True
     filters:
       - or:
@@ -106,7 +108,7 @@ sensor:
 
   - platform: homeassistant
     id: kwh_month
-    entity_id: sensor.kwh_hittil_mnd
+    entity_id: sensor.manedlig_forbruk_manedlig_forbruk_totalt
     internal: True
     filters:
       - or:
@@ -117,7 +119,7 @@ sensor:
 
   - platform: homeassistant
     id: cost_month
-    entity_id: sensor.strom_hittil_mnd_kr
+    entity_id: sensor.manedlig_forbruk_akkumulert_stromkostnad
     internal: True
     filters:
       - or:
@@ -161,7 +163,6 @@ display:
       height: 240
     pixel_mode: 16bit    # explicit pixel mode required for mipi_spi
     color_order: BGR     # GC9A01A requires BGR for correct colors
-    update_interval: never
     auto_clear_enabled: false
     # Orientation (upside-down mount) is handled by rotation: 180 in the lvgl: block
 
@@ -224,7 +225,8 @@ touchscreen:
             - lvgl.page.next
 
 image:
-  - file: mdi:lightning-bolt
+  - platform: file
+    file: mdi:lightning-bolt
     id: thunderbolt_icon
     resize: 50x50
     type: BINARY
@@ -284,30 +286,26 @@ lvgl:
                     ticks:
                       count: 2
                     indicators:
-                      - line:
-                          id: power_meter_input
-                          width: 10
-                          color: 0x0000FF
-                          r_mod: 12
-                          value: 0
                       - arc:
                           color: 0x00FF00
-                          r_mod: 10
                           width: 20
                           start_value: 0
                           end_value: !lambda return $section1_end*10;
                       - arc:
                           color: 0xFFFF00
-                          r_mod: 10
                           width: 20
                           start_value: !lambda return $section1_end*10;
                           end_value: !lambda return $section2_end*10;
                       - arc:
                           color: 0xFF3000
-                          r_mod: 10
                           width: 20
                           start_value: !lambda return $section2_end*10;
                           end_value: !lambda return $section3_end*10;
+                      - line:
+                          id: power_meter_input
+                          width: 8
+                          color: 0x0000FF
+                          value: 0
               - obj: # to erase middle part of meter indicator line
                   height: 180
                   width: 180
@@ -327,7 +325,14 @@ lvgl:
                   text_font: MONTSERRAT_22
                   y: -70
                   x: 0
-                  text: $center_label
+                  text: !lambda |-
+                    static char buf[10];
+                    float center = ${section3_end} / 2.0f;
+                    if (center == (int)center)
+                      snprintf(buf, sizeof(buf), "%d", (int)center);
+                    else
+                      snprintf(buf, sizeof(buf), "%.1f", center);
+                    return std::string(buf);    
               - label: # gauge upper range indicator
                   styles: font_style
                   text_font: MONTSERRAT_22
